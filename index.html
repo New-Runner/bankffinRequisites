@@ -5,61 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Генератор QR — Freedom Bank</title>
   
-  <!-- Подключаем qrcodejs для генерации QR-кодов в браузере -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Надежный генератор QR-кодов для длинных строк -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   
   <style>
     :root {
-      --bg-color: #0b1d16;
-      --card-bg: #142a21;
-      --accent-color: #00e676;
-      --accent-hover: #00c853;
-      --text-main: #ffffff;
-      --text-muted: #a0b0a8;
-      --border-color: #234737;
-      --error-color: #ff5252;
+      --bg-body: #f4f6f8;
+      --card-bg: #ffffff;
+      --accent-green: #00a859;
+      --accent-green-hover: #008f4c;
+      --accent-green-light: #e6f6ef;
+      --text-main: #1a1d20;
+      --text-muted: #6c757d;
+      --border-color: #e9ecef;
+      --border-active: #00a859;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.06);
+      --radius: 16px;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     body {
-      background-color: var(--bg-color);
+      background-color: var(--bg-body);
       color: var(--text-main);
       display: flex;
       justify-content: center;
-      padding: 20px 15px;
+      padding: 24px 16px;
       min-height: 100vh;
     }
 
     .container {
       width: 100%;
-      max-width: 520px;
+      max-width: 480px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
+    /* Шапка */
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px;
+    }
+
+    .brand-logo {
+      width: 12px;
+      height: 24px;
+      background-color: var(--accent-green);
+      border-radius: 3px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+    }
+
+    /* Карточки */
     .card {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 16px;
+      border-radius: var(--radius);
       padding: 20px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      box-shadow: var(--shadow-sm);
     }
 
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--accent-color);
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
       margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     /* Инструкция */
@@ -74,9 +98,9 @@
     .steps-list li {
       counter-increment: step-counter;
       position: relative;
-      padding-left: 32px;
-      font-size: 14px;
-      line-height: 1.4;
+      padding-left: 28px;
+      font-size: 13px;
+      line-height: 1.5;
       color: var(--text-muted);
     }
 
@@ -84,120 +108,142 @@
       content: counter(step-counter);
       position: absolute;
       left: 0;
-      top: 0;
-      width: 22px;
-      height: 22px;
-      background-color: var(--border-color);
-      color: var(--accent-color);
+      top: 1px;
+      width: 18px;
+      height: 18px;
+      background-color: #f0f2f5;
+      color: var(--text-main);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
-      font-size: 12px;
-    }
-
-    .highlight {
-      color: var(--text-main);
       font-weight: 600;
+      font-size: 11px;
     }
 
-    /* Ввод текста */
+    .steps-list strong {
+      color: var(--text-main);
+    }
+
+    /* Текстовое поле */
     textarea {
       width: 100%;
-      height: 160px;
-      background-color: rgba(0, 0, 0, 0.25);
+      height: 140px;
+      background-color: #f8f9fa;
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 12px;
       color: var(--text-main);
       font-size: 13px;
-      resize: vertical;
+      line-height: 1.4;
+      resize: none;
       outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
     }
 
     textarea:focus {
-      border-color: var(--accent-color);
+      background-color: #ffffff;
+      border-color: var(--border-active);
+      box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.1);
     }
 
     textarea::placeholder {
-      color: #5d7568;
+      color: #adb5bd;
     }
 
     .error-msg {
-      color: var(--error-color);
-      font-size: 13px;
+      color: #dc3545;
+      font-size: 12px;
       margin-top: 8px;
       display: none;
     }
 
-    /* Результат и QR */
+    /* Блок с QR */
     #qr-section {
       display: none;
       flex-direction: column;
       align-items: center;
       gap: 16px;
-      text-align: center;
+      box-shadow: var(--shadow-md);
     }
 
     .parsed-info {
       width: 100%;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 12px 14px;
       font-size: 13px;
-      text-align: left;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
-    .parsed-info div span {
+    .parsed-info-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .parsed-info-item span {
       color: var(--text-muted);
     }
 
+    .parsed-info-item strong {
+      color: var(--text-main);
+      font-weight: 600;
+      text-align: right;
+      word-break: break-all;
+    }
+
     .qr-wrapper {
-      background: white;
+      background: #ffffff;
       padding: 16px;
+      border: 1px solid var(--border-color);
       border-radius: 16px;
-      display: inline-block;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .qr-wrapper canvas, .qr-wrapper img {
+      display: block;
     }
 
     .btn {
       width: 100%;
-      background-color: var(--accent-color);
-      color: #04120c;
+      background-color: var(--accent-green);
+      color: #ffffff;
       border: none;
       border-radius: 12px;
       padding: 14px;
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
       transition: background-color 0.2s, transform 0.1s;
     }
 
     .btn:hover {
-      background-color: var(--accent-hover);
+      background-color: var(--accent-green-hover);
     }
 
     .btn:active {
-      transform: scale(0.98);
+      transform: scale(0.99);
     }
 
-    /* Предупреждение про санкции */
+    /* Предупреждение */
     .warning-card {
-      background-color: rgba(255, 171, 0, 0.08);
-      border: 1px solid rgba(255, 171, 0, 0.3);
-      border-radius: 12px;
+      background-color: #fff9db;
+      border: 1px solid #ffe066;
+      border-radius: var(--radius);
       padding: 14px;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.5;
-      color: #ffd54f;
+      color: #856404;
     }
 
     .warning-card a {
-      color: var(--accent-color);
+      color: var(--accent-green);
+      font-weight: 600;
       text-decoration: underline;
     }
   </style>
@@ -206,45 +252,59 @@
 
 <div class="container">
 
-  <!-- Шаг 1: Инструкция -->
+  <!-- Лого/Шапка -->
+  <div class="brand-header">
+    <div class="brand-logo"></div>
+    <div class="brand-title">Freedom Bank</div>
+  </div>
+
+  <!-- Инструкция -->
   <div class="card">
-    <h1>Как получить реквизиты</h1>
+    <div class="card-title">Как получить реквизиты</div>
     <ol class="steps-list">
-      <li>Откройте приложение <span class="highlight">Freedom Banker</span></li>
-      <li>Перейдите в раздел <span class="highlight">Карты</span> и нажмите на карту</li>
-      <li>Нажмите <span class="highlight">Информация</span>, далее <span class="highlight">Реквизиты</span></li>
-      <li>Перейдите во вкладку <span class="highlight">РУБЛЕВЫЕ реквизиты</span></li>
-      <li>Скопируйте текст полностью и вставьте в поле ниже</li>
+      <li>Откройте приложение <strong>Freedom Banker</strong></li>
+      <li>Нажмите на карту и выберите <strong>Информация → Реквизиты</strong></li>
+      <li>Перейдите во вкладку <strong>РУБЛЕВЫЕ реквизиты</strong></li>
+      <li>Скопируйте текст и вставьте в поле ниже</li>
     </ol>
   </div>
 
-  <!-- Шаг 2: Поле ввода -->
+  <!-- Поле ввода -->
   <div class="card">
-    <h1>Вставьте реквизиты</h1>
+    <div class="card-title">Реквизиты</div>
     <textarea id="raw-data" placeholder="Вставьте скопированный текст реквизитов сюда..."></textarea>
-    <div id="error" class="error-msg">Не удалось найти необходимые данные. Проверьте скопированный текст.</div>
+    <div id="error" class="error-msg">Не удалось найти ФИО, IBAN или ИИН. Проверьте скопированный текст.</div>
   </div>
 
-  <!-- Шаг 3: Результат и QR -->
+  <!-- Результат и QR -->
   <div class="card" id="qr-section">
-    <h1>Ваш QR-код готов</h1>
+    <div class="card-title" style="margin-bottom: 0;">Ваш QR-код для оплаты</div>
     
     <div class="parsed-info">
-      <div><span>Получатель:</span> <strong id="out-fio"></strong></div>
-      <div><span>IBAN:</span> <strong id="out-iban"></strong></div>
-      <div><span>ИИН:</span> <strong id="out-iin"></strong></div>
+      <div class="parsed-info-item">
+        <span>Получатель:</span>
+        <strong id="out-fio">—</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>IBAN:</span>
+        <strong id="out-iban">—</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>ИИН:</span>
+        <strong id="out-iin">—</strong>
+      </div>
     </div>
 
     <div class="qr-wrapper">
       <div id="qrcode"></div>
     </div>
 
-    <button class="btn" id="download-btn">Скачать QR-код в галерею</button>
+    <button class="btn" id="download-btn">Скачать QR-код</button>
   </div>
 
   <!-- Предупреждение -->
   <div class="warning-card">
-    ⚠️ <strong>Важное примечание:</strong> Отправлять перевод нужно <strong>только из банков, не находящихся под санкциями</strong>. 
+    ⚠️ <strong>Важное примечание:</strong> Отправляйте перевод только из банков, не находящихся под санкциями. 
     Актуальный список подсанкционных банков можно посмотреть на <a href="https://guide.kaspi.kz/partner/ru/currency/currency_control/q2315" target="_blank" rel="noopener">сайте Kaspi</a>.
   </div>
 
@@ -261,7 +321,7 @@
   const outIin = document.getElementById('out-iin');
   const downloadBtn = document.getElementById('download-btn');
 
-  let qrcodeObj = null;
+  let currentDataUrl = '';
 
   rawInput.addEventListener('input', processInput);
 
@@ -273,7 +333,7 @@
       return;
     }
 
-    // Регулярные выражения для вытаскивания полей
+    // Извлечение полей с помощью регулярных выражений
     const fioMatch = text.match(/Получатель:\s*([^\n\r]+)/i);
     const ibanMatch = text.match(/IBAN:\s*([A-Z0-9]+)/i);
     const iinMatch = text.match(/ИИН:\s*(\d+)/i);
@@ -283,21 +343,17 @@
       const iban = ibanMatch[1].trim();
       const iin = iinMatch[1].trim();
 
-      // Отображаем распознанные данные
       outFio.textContent = fio;
       outIban.textContent = iban;
       outIin.textContent = iin;
 
-      // Собираем строчку по шаблону ГОСТ (СБП)
+      // Строка ГОСТ / СБП
       const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810100000003043|BankName=ООО "Унифондбанк"|BIC=044525488|CorrespAcc=30101810945250000488|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
 
       generateQRCode(qrPayload);
 
       errorDiv.style.display = 'none';
       qrSection.style.display = 'flex';
-      
-      // Плавная прокрутка к QR-коду на мобилках
-      qrSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       qrSection.style.display = 'none';
       errorDiv.style.display = 'block';
@@ -306,36 +362,36 @@
 
   function generateQRCode(text) {
     qrcodeContainer.innerHTML = '';
-    qrcodeObj = new QRCode(qrcodeContainer, {
-      text: text,
-      width: 220,
-      height: 220,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M
-    });
+
+    // Используем qrcode-generator с автоматическим корректным типом размерности (0)
+    // и коррекцией ошибок 'M'
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+
+    // Создаем тег <img> с Data URL
+    const imgTag = qr.createImgTag(5, 10); // cell size, margin
+    qrcodeContainer.innerHTML = imgTag;
+
+    const imgElement = qrcodeContainer.querySelector('img');
+    if (imgElement) {
+      imgElement.style.width = '200px';
+      imgElement.style.height = '200px';
+      imgElement.style.borderRadius = '8px';
+      currentDataUrl = imgElement.src;
+    }
   }
 
   // Скачивание QR-кода
   downloadBtn.addEventListener('click', () => {
-    const img = qrcodeContainer.querySelector('img');
-    const canvas = qrcodeContainer.querySelector('canvas');
-    
-    let imageSrc = '';
-    if (img && img.src) {
-      imageSrc = img.src;
-    } else if (canvas) {
-      imageSrc = canvas.toDataURL("image/png");
-    }
+    if (!currentDataUrl) return;
 
-    if (imageSrc) {
-      const link = document.createElement('a');
-      link.href = imageSrc;
-      link.download = `Freedom_QR_${outIin.textContent || 'code'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    const link = document.createElement('a');
+    link.href = currentDataUrl;
+    link.download = `Freedom_QR_${outIin.textContent || 'code'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   });
 </script>
 

@@ -151,16 +151,21 @@
       color: #adb5bd;
     }
 
-    .error-msg {
-      color: #dc3545;
+    .info-status {
       font-size: 12px;
       margin-top: 8px;
+      color: var(--text-muted);
       display: none;
+    }
+
+    .info-status.warning {
+      color: #d97706;
+      display: block;
     }
 
     /* Блок с QR */
     #qr-section {
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       gap: 16px;
@@ -193,6 +198,11 @@
       font-weight: 600;
       text-align: right;
       word-break: break-all;
+    }
+
+    .placeholder-text {
+      color: #adb5bd !important;
+      font-style: italic;
     }
 
     .qr-wrapper {
@@ -263,9 +273,10 @@
     <div class="card-title">Как получить реквизиты</div>
     <ol class="steps-list">
       <li>Откройте приложение <strong>Freedom Banker</strong></li>
-      <li>Нажмите на карту и выберите <strong>Информация → Реквизиты</strong></li>
-      <li>Перейдите во вкладку <strong>РУБЛЕВЫЕ реквизиты</strong></li>
-      <li>Скопируйте текст и вставьте в поле ниже</li>
+      <li>Перейдите в раздел <strong>Карты</strong> и нажмите на карту</li>
+      <li>Выберите <strong>Информация → Реквизиты</strong></li>
+      <li>Перейдите во вкладку <strong>РУБЛЕВЫЕ</strong> реквизиты</li>
+      <li>Скопируйте реквизиты и вставьте в поле ниже</li>
     </ol>
   </div>
 
@@ -273,7 +284,7 @@
   <div class="card">
     <div class="card-title">Реквизиты</div>
     <textarea id="raw-data" placeholder="Вставьте скопированный текст реквизитов сюда..."></textarea>
-    <div id="error" class="error-msg">Не удалось найти ФИО, IBAN или ИИН. Проверьте скопированный текст.</div>
+    <div id="status-msg" class="info-status"></div>
   </div>
 
   <!-- Результат и QR -->
@@ -283,15 +294,15 @@
     <div class="parsed-info">
       <div class="parsed-info-item">
         <span>Получатель:</span>
-        <strong id="out-fio">—</strong>
+        <strong id="out-fio">ФАМИЛИЯ ИМЯ ОТЧЕСТВО</strong>
       </div>
       <div class="parsed-info-item">
         <span>IBAN:</span>
-        <strong id="out-iban">—</strong>
+        <strong id="out-iban">НОМЕР РУБЛЁВОГО СЧЁТА</strong>
       </div>
       <div class="parsed-info-item">
         <span>ИИН:</span>
-        <strong id="out-iin">—</strong>
+        <strong id="out-iin">00000000</strong>
       </div>
     </div>
 
@@ -312,8 +323,7 @@
 
 <script>
   const rawInput = document.getElementById('raw-data');
-  const errorDiv = document.getElementById('error');
-  const qrSection = document.getElementById('qr-section');
+  const statusMsg = document.getElementById('status-msg');
   const qrcodeContainer = document.getElementById('qrcode');
   
   const outFio = document.getElementById('out-fio');
@@ -323,13 +333,24 @@
 
   let currentDataUrl = '';
 
+  // Дефолтные значения
+  const DEFAULT_FIO = 'ФАМИЛИЯ ИМЯ ОТЧЕСТВО';
+  const DEFAULT_IBAN = 'НОМЕР РУБЛЁВОГО СЧЁТА';
+  const DEFAULT_IIN = '00000000';
+
+  // Рендерим шаблонный QR сразу при загрузке страницы
+  window.addEventListener('DOMContentLoaded', () => {
+    updateView(DEFAULT_FIO, DEFAULT_IBAN, DEFAULT_IIN, false);
+  });
+
   rawInput.addEventListener('input', processInput);
 
   function processInput() {
     const text = rawInput.value.trim();
+
     if (!text) {
-      qrSection.style.display = 'none';
-      errorDiv.style.display = 'none';
+      statusMsg.className = 'info-status';
+      updateView(DEFAULT_FIO, DEFAULT_IBAN, DEFAULT_IIN, false);
       return;
     }
 
@@ -338,39 +359,47 @@
     const ibanMatch = text.match(/IBAN:\s*([A-Z0-9]+)/i);
     const iinMatch = text.match(/ИИН:\s*(\d+)/i);
 
-    if (fioMatch && ibanMatch && iinMatch) {
-      const fio = fioMatch[1].trim();
-      const iban = ibanMatch[1].trim();
-      const iin = iinMatch[1].trim();
+    const fio = fioMatch ? fioMatch[1].trim() : DEFAULT_FIO;
+    const iban = ibanMatch ? ibanMatch[1].trim() : DEFAULT_IBAN;
+    const iin = iinMatch ? iinMatch[1].trim() : DEFAULT_IIN;
 
-      outFio.textContent = fio;
-      outIban.textContent = iban;
-      outIin.textContent = iin;
+    const isFullyParsed = Boolean(fioMatch && ibanMatch && iinMatch);
 
-      // Строка ГОСТ / СБП
-      const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810100000003043|BankName=ООО "Унифондбанк"|BIC=044525488|CorrespAcc=30101810945250000488|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
-
-      generateQRCode(qrPayload);
-
-      errorDiv.style.display = 'none';
-      qrSection.style.display = 'flex';
+    if (!isFullyParsed) {
+      statusMsg.textContent = 'Часть данных не найдена. Подставлены шаблонные значения.';
+      statusMsg.className = 'info-status warning';
     } else {
-      qrSection.style.display = 'none';
-      errorDiv.style.display = 'block';
+      statusMsg.className = 'info-status';
     }
+
+    updateView(fio, iban, iin, isFullyParsed);
+  }
+
+  function updateView(fio, iban, iin, isRealData) {
+    // Обновляем текстовые поля и стиль для дефолтных данных
+    outFio.textContent = fio;
+    outFio.className = (fio === DEFAULT_FIO) ? 'placeholder-text' : '';
+
+    outIban.textContent = iban;
+    outIban.className = (iban === DEFAULT_IBAN) ? 'placeholder-text' : '';
+
+    outIin.textContent = iin;
+    outIin.className = (iin === DEFAULT_IIN) ? 'placeholder-text' : '';
+
+    // Формируем строчку ГОСТ / СБП
+    const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810100000003043|BankName=ООО "Унифондбанк"|BIC=044525488|CorrespAcc=30101810945250000488|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
+
+    generateQRCode(qrPayload);
   }
 
   function generateQRCode(text) {
     qrcodeContainer.innerHTML = '';
 
-    // Используем qrcode-generator с автоматическим корректным типом размерности (0)
-    // и коррекцией ошибок 'M'
     const qr = qrcode(0, 'M');
     qr.addData(text);
     qr.make();
 
-    // Создаем тег <img> с Data URL
-    const imgTag = qr.createImgTag(5, 10); // cell size, margin
+    const imgTag = qr.createImgTag(5, 10);
     qrcodeContainer.innerHTML = imgTag;
 
     const imgElement = qrcodeContainer.querySelector('img');
@@ -386,9 +415,10 @@
   downloadBtn.addEventListener('click', () => {
     if (!currentDataUrl) return;
 
+    const fileNameIin = outIin.textContent !== DEFAULT_IIN ? outIin.textContent : 'template';
     const link = document.createElement('a');
     link.href = currentDataUrl;
-    link.download = `Freedom_QR_${outIin.textContent || 'code'}.png`;
+    link.download = `Freedom_QR_${fileNameIin}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

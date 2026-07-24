@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Генератор QR — Freedom Bank</title>
   
-  <!-- Надежный генератор QR-кодов для длинных строк -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
   
   <style>
@@ -48,7 +47,6 @@
       gap: 16px;
     }
 
-    /* Шапка */
     .brand-header {
       display: flex;
       align-items: center;
@@ -70,7 +68,6 @@
       letter-spacing: -0.3px;
     }
 
-    /* Карточки */
     .card {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
@@ -86,7 +83,6 @@
       margin-bottom: 12px;
     }
 
-    /* Инструкция */
     .steps-list {
       list-style-type: none;
       counter-reset: step-counter;
@@ -125,7 +121,6 @@
       color: var(--text-main);
     }
 
-    /* Текстовое поле */
     textarea {
       width: 100%;
       height: 140px;
@@ -163,7 +158,6 @@
       display: block;
     }
 
-    /* Блок с QR */
     #qr-section {
       display: flex;
       flex-direction: column;
@@ -240,7 +234,6 @@
       transform: scale(0.99);
     }
 
-    /* Предупреждение */
     .warning-card {
       background-color: #fff9db;
       border: 1px solid #ffe066;
@@ -262,13 +255,11 @@
 
 <div class="container">
 
-  <!-- Лого/Шапка -->
   <div class="brand-header">
     <div class="brand-logo"></div>
     <div class="brand-title">Freedom Bank</div>
   </div>
 
-  <!-- Инструкция -->
   <div class="card">
     <div class="card-title">Как получить реквизиты</div>
     <ol class="steps-list">
@@ -280,14 +271,12 @@
     </ol>
   </div>
 
-  <!-- Поле ввода -->
   <div class="card">
     <div class="card-title">Реквизиты</div>
     <textarea id="raw-data" placeholder="Вставьте скопированный текст реквизитов сюда..."></textarea>
     <div id="status-msg" class="info-status"></div>
   </div>
 
-  <!-- Результат и QR -->
   <div class="card" id="qr-section">
     <div class="card-title" style="margin-bottom: 0;">Ваш QR-код для оплаты</div>
     
@@ -313,7 +302,6 @@
     <button class="btn" id="download-btn">Скачать QR-код</button>
   </div>
 
-  <!-- Предупреждение -->
   <div class="warning-card">
     ⚠️ <strong>Важное примечание:</strong> Отправляйте перевод только из банков, не находящихся под санкциями. 
     Актуальный список подсанкционных банков можно посмотреть на <a href="https://guide.kaspi.kz/partner/ru/currency/currency_control/q2315" target="_blank" rel="noopener">сайте Kaspi</a>.
@@ -333,12 +321,30 @@
 
   let currentDataUrl = '';
 
-  // Дефолтные значения
   const DEFAULT_FIO = 'ФАМИЛИЯ ИМЯ ОТЧЕСТВО';
   const DEFAULT_IBAN = 'НОМЕР РУБЛЁВОГО СЧЁТА';
   const DEFAULT_IIN = '00000000';
 
-  // Рендерим шаблонный QR сразу при загрузке страницы
+  // Функция перевода UTF-8 строки в двоичную строку CP1251
+  function encodeWin1251(str) {
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+      let code = str.charCodeAt(i);
+      if (code < 128) {
+        result += String.fromCharCode(code);
+      } else if (code === 1025) { // Ё
+        result += String.fromCharCode(168);
+      } else if (code === 1105) { // ё
+        result += String.fromCharCode(184);
+      } else if (code >= 1040 && code <= 1103) { // А-Я, а-я
+        result += String.fromCharCode(code - 1040 + 192);
+      } else {
+        result += '?';
+      }
+    }
+    return result;
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     updateView(DEFAULT_FIO, DEFAULT_IBAN, DEFAULT_IIN, false);
   });
@@ -354,14 +360,16 @@
       return;
     }
 
-    // Извлечение полей с помощью регулярных выражений
-    const fioMatch = text.match(/Получатель:\s*([^\n\r]+)/i);
-    const ibanMatch = text.match(/IBAN:\s*([A-Z0-9]+)/i);
-    const iinMatch = text.match(/ИИН:\s*(\d+)/i);
+    // Улучшенный регулярный поиск
+    const fioMatch = text.match(/Получатель:\s*([А-Яа-яЁёA-Za-z\s\.-]+?)(?=\r?\n|Банк|IBAN|SWIFT|$)/i) || text.match(/Получатель:\s*([^\n\r]+)/i);
+    
+    const cleanText = text.replace(/\s+/g, '');
+    const ibanMatch = cleanText.match(/IBAN:?([A-Z0-9]{20})/i) || text.match(/IBAN:\s*([A-Z0-9]+)/i);
+    const iinMatch = text.match(/ИИН:?\s*(\d{12})/i) || text.match(/ИИН:\s*(\d+)/i);
 
-    const fio = fioMatch ? fioMatch[1].trim() : DEFAULT_FIO;
-    const iban = ibanMatch ? ibanMatch[1].trim() : DEFAULT_IBAN;
-    const iin = iinMatch ? iinMatch[1].trim() : DEFAULT_IIN;
+    const fio = (fioMatch && fioMatch[1].trim().length > 2) ? fioMatch[1].trim() : DEFAULT_FIO;
+    const iban = ibanMatch ? ibanMatch[1].toUpperCase() : DEFAULT_IBAN;
+    const iin = iinMatch ? iinMatch[1] : DEFAULT_IIN;
 
     const isFullyParsed = Boolean(fioMatch && ibanMatch && iinMatch);
 
@@ -376,7 +384,6 @@
   }
 
   function updateView(fio, iban, iin, isRealData) {
-    // Обновляем текстовые поля и стиль для дефолтных данных
     outFio.textContent = fio;
     outFio.className = (fio === DEFAULT_FIO) ? 'placeholder-text' : '';
 
@@ -386,32 +393,41 @@
     outIin.textContent = iin;
     outIin.className = (iin === DEFAULT_IIN) ? 'placeholder-text' : '';
 
-    // Формируем строчку ГОСТ / СБП
     const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810100000003043|BankName=ООО "Унифондбанк"|BIC=044525488|CorrespAcc=30101810945250000488|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
 
-    generateQRCode(qrPayload);
+    generateQRCodeWin1251(qrPayload);
   }
 
-  function generateQRCode(text) {
+  function generateQRCodeWin1251(text) {
     qrcodeContainer.innerHTML = '';
 
-    const qr = qrcode(0, 'M');
-    qr.addData(text);
-    qr.make();
+    try {
+      // 0 = автоопределение размера (TypeNumber)
+      // 'M' = уровень коррекции ошибок (15%)
+      const qr = qrcode(0, 'M');
+      
+      // Кодируем кириллицу в 8-битную строку CP1251
+      const win1251String = encodeWin1251(text);
 
-    const imgTag = qr.createImgTag(5, 10);
-    qrcodeContainer.innerHTML = imgTag;
+      qr.addData(win1251String, 'Byte');
+      qr.make();
 
-    const imgElement = qrcodeContainer.querySelector('img');
-    if (imgElement) {
-      imgElement.style.width = '200px';
-      imgElement.style.height = '200px';
-      imgElement.style.borderRadius = '8px';
-      currentDataUrl = imgElement.src;
+      // Генерация <img>
+      const imgTag = qr.createImgTag(5, 10);
+      qrcodeContainer.innerHTML = imgTag;
+
+      const imgElement = qrcodeContainer.querySelector('img');
+      if (imgElement) {
+        imgElement.style.width = '200px';
+        imgElement.style.height = '200px';
+        imgElement.style.borderRadius = '8px';
+        currentDataUrl = imgElement.src;
+      }
+    } catch (e) {
+      console.error('Ошибка генерации QR-кода:', e);
     }
   }
 
-  // Скачивание QR-кода
   downloadBtn.addEventListener('click', () => {
     if (!currentDataUrl) return;
 

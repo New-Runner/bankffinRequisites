@@ -393,7 +393,7 @@
     outIin.textContent = iin;
     outIin.className = (iin === DEFAULT_IIN) ? 'placeholder-text' : '';
 
-    const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810100000003043|BankName=ООО "Унифондбанк"|BIC=044525488|CorrespAcc=30101810945250000488|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
+    const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810200010015695|BankName=АО "Кредит Европа Банк (Россия)"|BIC=044525767|CorrespAcc=30101810900000000767|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
 
     generateQRCodeWin1251(qrPayload);
   }

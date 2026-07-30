@@ -299,6 +299,37 @@
       <div id="qrcode"></div>
     </div>
 
+    <div class="parsed-info">
+      <div class="parsed-info-item">
+        <span>Банк-получатель:</span>
+        <strong id="out-bank">АО "Кредит Европа Банк (Россия)"</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>к/с:</span>
+        <strong id="out-corresp-acc">30101810900000000767</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>БИК:</span>
+        <strong id="out-bic">044525767</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>Получатель:</span>
+        <strong id="out-payee-name">АО Фридом Банк Казахстан</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>Расчётный счёт получателя:</span>
+        <strong id="out-personal-acc">30111810200010015695</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>ИНН получателя:</span>
+        <strong id="out-payee-inn">9909349490</strong>
+      </div>
+      <div class="parsed-info-item">
+        <span>КПП получателя:</span>
+        <strong id="out-payee-kpp">540587001</strong>
+      </div>
+    </div>
+
     <button class="btn" id="download-btn">Скачать QR-код</button>
   </div>
 
@@ -317,6 +348,13 @@
   const outFio = document.getElementById('out-fio');
   const outIban = document.getElementById('out-iban');
   const outIin = document.getElementById('out-iin');
+  const outBank = document.getElementById('out-bank');
+  const outCorrespAcc = document.getElementById('out-corresp-acc');
+  const outBic = document.getElementById('out-bic');
+  const outPayeeName = document.getElementById('out-payee-name');
+  const outPersonalAcc = document.getElementById('out-personal-acc');
+  const outPayeeInn = document.getElementById('out-payee-inn');
+  const outPayeeKpp = document.getElementById('out-payee-kpp');
   const downloadBtn = document.getElementById('download-btn');
 
   let currentDataUrl = '';
@@ -324,6 +362,13 @@
   const DEFAULT_FIO = 'ФАМИЛИЯ ИМЯ ОТЧЕСТВО';
   const DEFAULT_IBAN = 'НОМЕР РУБЛЁВОГО СЧЁТА';
   const DEFAULT_IIN = '00000000';
+  const DEFAULT_BANK = 'АО "Кредит Европа Банк (Россия)"';
+  const DEFAULT_CORRESP_ACC = '30101810900000000767';
+  const DEFAULT_BIC = '044525767';
+  const DEFAULT_PAYEE_NAME = 'АО Фридом Банк Казахстан';
+  const DEFAULT_PERSONAL_ACC = '30111810200010015695';
+  const DEFAULT_PAYEE_INN = '9909349490';
+  const DEFAULT_PAYEE_KPP = '540587001';
 
   // Функция перевода UTF-8 строки в двоичную строку CP1251
   function encodeWin1251(str) {
@@ -394,8 +439,29 @@
     outIin.className = (iin === DEFAULT_IIN) ? 'placeholder-text' : '';
 
     const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810200010015695|BankName=АО "Кредит Европа Банк (Россия)"|BIC=044525767|CorrespAcc=30101810900000000767|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
+    const payloadValues = parsePayloadFields(qrPayload);
+
+    outBank.textContent = payloadValues.BankName || DEFAULT_BANK;
+    outCorrespAcc.textContent = payloadValues.CorrespAcc || DEFAULT_CORRESP_ACC;
+    outBic.textContent = payloadValues.BIC || DEFAULT_BIC;
+    outPayeeName.textContent = payloadValues.Name || DEFAULT_PAYEE_NAME;
+    outPersonalAcc.textContent = payloadValues.PersonalAcc || DEFAULT_PERSONAL_ACC;
+    outPayeeInn.textContent = payloadValues.PayeeINN || DEFAULT_PAYEE_INN;
+    outPayeeKpp.textContent = payloadValues.KPP || DEFAULT_PAYEE_KPP;
 
     generateQRCodeWin1251(qrPayload);
+  }
+
+  function parsePayloadFields(payload) {
+    const values = {};
+    const fields = ['Name', 'PersonalAcc', 'BankName', 'BIC', 'CorrespAcc', 'PayeeINN', 'KPP'];
+
+    fields.forEach((field) => {
+      const match = payload.match(new RegExp(`${field}=(.*?)\\|`));
+      values[field] = match ? match[1] : '';
+    });
+
+    return values;
   }
 
   function generateQRCodeWin1251(text) {

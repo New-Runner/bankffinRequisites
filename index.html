@@ -234,6 +234,31 @@
       transform: scale(0.99);
     }
 
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      background-color: #b8d8c3;
+    }
+
+    .select-field {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background-color: #f8f9fa;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .select-row {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
     .warning-card {
       background-color: #fff9db;
       border: 1px solid #ffe066;
@@ -279,7 +304,14 @@
 
   <div class="card" id="qr-section">
     <div class="card-title" style="margin-bottom: 0;">Ваш QR-код для оплаты</div>
-    
+    <div class="select-row">
+      <select id="bank-select" class="select-field">
+        <option value="" selected>Банк не выбран</option>
+        <option value="mba">Банк «МБА-МОСКВА»</option>
+        <option value="cebank">Кредит Европа Банк (Россия)</option>
+      </select>
+      <a id="check-requisites" class="btn" href="https://bankffin.kz/ru/requisites" target="_blank" rel="noopener">Проверить реквизиты на сайте Freedom Bank</a>
+    </div>
     <div class="parsed-info">
       <div class="parsed-info-item">
         <span>Получатель:</span>
@@ -355,9 +387,33 @@
   const outPersonalAcc = document.getElementById('out-personal-acc');
   const outPayeeInn = document.getElementById('out-payee-inn');
   const outPayeeKpp = document.getElementById('out-payee-kpp');
+  const bankSelect = document.getElementById('bank-select');
   const downloadBtn = document.getElementById('download-btn');
 
   let currentDataUrl = '';
+
+  const BANKS = {
+    mba: {
+      label: 'Банк «МБА-МОСКВА»',
+      bankName: 'Банк «МБА-МОСКВА»',
+      bic: '044525502',
+      correspAcc: '30101810000000000502',
+      name: 'АО Фридом Банк Казахстан',
+      personalAcc: '30111810600000004305',
+      payeeInn: '9909349490',
+      kpp: '775087001',
+    },
+    cebank: {
+      label: 'АО "Кредит Европа Банк (Россия)"',
+      bankName: 'АО "Кредит Европа Банк (Россия)"',
+      bic: '044525767',
+      correspAcc: '30101810900000000767',
+      name: 'АО Фридом Банк Казахстан',
+      personalAcc: '30111810200010015695',
+      payeeInn: '9909349490',
+      kpp: '540587001',
+    },
+  };
 
   const DEFAULT_FIO = 'ФАМИЛИЯ ИМЯ ОТЧЕСТВО';
   const DEFAULT_IBAN = 'НОМЕР РУБЛЁВОГО СЧЁТА';
@@ -395,6 +451,11 @@
   });
 
   rawInput.addEventListener('input', processInput);
+  bankSelect.addEventListener('change', processInput);
+
+  function getSelectedBankConfig() {
+    return BANKS[bankSelect.value] || null;
+  }
 
   function processInput() {
     const text = rawInput.value.trim();
@@ -438,18 +499,42 @@
     outIin.textContent = iin;
     outIin.className = (iin === DEFAULT_IIN) ? 'placeholder-text' : '';
 
-    const qrPayload = `ST00012|Name=АО Фридом Банк Казахстан|PersonalAcc=30111810200010015695|BankName=АО "Кредит Европа Банк (Россия)"|BIC=044525767|CorrespAcc=30101810900000000767|PayeeINN=9909349490|KPP=540587001|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
+    const bankConfig = getSelectedBankConfig();
+
+    if (!bankConfig) {
+      outBank.textContent = 'Банк не выбран';
+      outBank.className = 'placeholder-text';
+      outCorrespAcc.textContent = '—';
+      outCorrespAcc.className = 'placeholder-text';
+      outBic.textContent = '—';
+      outBic.className = 'placeholder-text';
+      outPayeeName.textContent = '—';
+      outPayeeName.className = 'placeholder-text';
+      outPersonalAcc.textContent = '—';
+      outPersonalAcc.className = 'placeholder-text';
+      outPayeeInn.textContent = '—';
+      outPayeeInn.className = 'placeholder-text';
+      outPayeeKpp.textContent = '—';
+      outPayeeKpp.className = 'placeholder-text';
+      qrcodeContainer.innerHTML = '';
+      currentDataUrl = '';
+      downloadBtn.disabled = true;
+      return;
+    }
+
+    const qrPayload = `ST00012|Name=${bankConfig.name}|PersonalAcc=${bankConfig.personalAcc}|BankName=${bankConfig.bankName}|BIC=${bankConfig.bic}|CorrespAcc=${bankConfig.correspAcc}|PayeeINN=${bankConfig.payeeInn}|KPP=${bankConfig.kpp}|Purpose=Для зачисления на счёт ${iban}, получатель ${fio}, ИИН ${iin}, перевод собственных денежных средств|TechCode=15`;
     const payloadValues = parsePayloadFields(qrPayload);
 
-    outBank.textContent = payloadValues.BankName || DEFAULT_BANK;
-    outCorrespAcc.textContent = payloadValues.CorrespAcc || DEFAULT_CORRESP_ACC;
-    outBic.textContent = payloadValues.BIC || DEFAULT_BIC;
+    outBank.textContent = payloadValues.BankName || bankConfig.label;
+    outCorrespAcc.textContent = payloadValues.CorrespAcc || bankConfig.correspAcc;
+    outBic.textContent = payloadValues.BIC || bankConfig.bic;
     outPayeeName.textContent = payloadValues.Name || DEFAULT_PAYEE_NAME;
     outPersonalAcc.textContent = payloadValues.PersonalAcc || DEFAULT_PERSONAL_ACC;
     outPayeeInn.textContent = payloadValues.PayeeINN || DEFAULT_PAYEE_INN;
     outPayeeKpp.textContent = payloadValues.KPP || DEFAULT_PAYEE_KPP;
 
     generateQRCodeWin1251(qrPayload);
+    downloadBtn.disabled = false;
   }
 
   function parsePayloadFields(payload) {
